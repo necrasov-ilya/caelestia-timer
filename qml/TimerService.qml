@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Caelestia.I18n
 import "TimerLogic.js" as Logic
 
 Singleton {
@@ -15,7 +16,7 @@ Singleton {
     property var keyboardOwners: []
     readonly property string statePath: Quickshell.env("CAELESTIA_TIMER_STATE_FILE") ||
         (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state") + "/caelestia-timer/state.json"
-    readonly property bool russian: (Quickshell.env("LC_ALL") || Quickshell.env("LC_MESSAGES") || Quickshell.env("LANG")).startsWith("ru")
+    readonly property bool russian: (Tr.language || Quickshell.env("LC_ALL") || Quickshell.env("LC_MESSAGES") || Quickshell.env("LANG")).startsWith("ru")
     readonly property string phase: state.phase
     readonly property bool running: phase === "running"
     readonly property bool editable: ready && (phase === "idle" || phase === "finished")
