@@ -2,3 +2,4 @@ singleton TimerService 1.0 TimerService.qml
 TimerTab 1.0 TimerTab.qml
 DriftingShapes 1.0 DriftingShapes.qml
 TimerBootstrap 1.0 TimerBootstrap.qml
+TimerRing 1.0 TimerRing.qml

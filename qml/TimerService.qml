@@ -79,6 +79,22 @@ Singleton {
         commit(Logic.reset(state));
     }
 
+    function durationText(): string {
+        return Logic.formatTime(state.durationSeconds * 1000);
+    }
+
+    function validDurationText(text: string): bool {
+        return Logic.parseDuration(text) !== null;
+    }
+
+    function setDurationText(text: string): bool {
+        const seconds = Logic.parseDuration(text);
+        if (seconds === null)
+            return false;
+        setDuration(seconds);
+        return true;
+    }
+
     function setDuration(seconds: int): void {
         commit(Logic.setDuration(state, seconds));
     }

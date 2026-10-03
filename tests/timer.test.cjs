@@ -78,3 +78,14 @@ test('four named presets are editable, validated and persist independently of ti
     assert.equal(logic.updatePreset(state, 0, 'Invalid', 0), state);
     assert.equal(logic.restore({...state, presets: [{}, {}, {}, {}]}).presets[0].seconds, 900);
 });
+
+
+test("duration input accepts minutes and clocks, rejecting ambiguous or out-of-range values", () => {
+    assert.equal(logic.parseDuration("15"), 900);
+    assert.equal(logic.parseDuration(" 30:00 "), 1800);
+    assert.equal(logic.parseDuration("00:01"), 1);
+    assert.equal(logic.parseDuration("1:02:03"), 3723);
+    assert.equal(logic.parseDuration("24:00:00"), 86400);
+    for (const input of ["", "0", "-1", "1e3", "1:60", "24:00:01", "1:99:00", "1500", "1:2:3:4", null])
+        assert.equal(logic.parseDuration(input), null);
+});

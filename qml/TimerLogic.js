@@ -103,3 +103,21 @@ function updatePreset(state, index, label, seconds) {
     presets[index] = { label: label.trim(), seconds: seconds };
     return Object.assign({}, state, { presets: presets });
 }
+
+// Bare numbers are minutes; clock input supports mm:ss and hh:mm:ss.
+function parseDuration(text) {
+    if (typeof text !== "string")
+        return null;
+    var input = text.trim();
+    if (!/^[0-9]{1,4}(:[0-9]{1,2}){0,2}$/.test(input))
+        return null;
+    var parts = input.split(":").map(Number);
+    var seconds;
+    if (parts.length === 1)
+        seconds = parts[0] * 60;
+    else if (parts.length === 2 && parts[1] < 60)
+        seconds = parts[0] * 60 + parts[1];
+    else if (parts.length === 3 && parts[1] < 60 && parts[2] < 60)
+        seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
+    return validDuration(seconds) ? seconds : null;
+}

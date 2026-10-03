@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import M3Shapes
+import Caelestia.Config
 import qs.components
 import qs.services
 
@@ -15,7 +16,7 @@ Item {
 
     Repeater {
         id: shapes
-        model: 10
+        model: 6
         delegate: MaterialShape {
             id: blob
             required property int index
@@ -25,7 +26,7 @@ Item {
             property real driftY: 0
             property real vx: (index % 2 ? -1 : 1) * (3 + index % 4)
             property real vy: (index % 3 ? 1 : -1) * (2 + index % 5)
-            implicitSize: 38 + (index % 5) * 22
+            implicitSize: 44 + (index % 4) * 24
             x: originX * root.width + driftX - width / 2
             y: originY * root.height + driftY - height / 2
             shape: root.shapePool[index % root.shapePool.length]
@@ -38,7 +39,7 @@ Item {
     }
 
     FrameAnimation {
-        running: root.visible && root.animate && root.width > 0 && root.height > 0
+        running: root.visible && root.animate && root.width > 0 && root.height > 0 && Tokens.anim.durations.scale > 0
         onTriggered: {
             const dt = Math.min(frameTime, 0.05);
             for (let i = 0; i < shapes.count; i++) {
