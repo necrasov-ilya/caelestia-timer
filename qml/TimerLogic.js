@@ -6,7 +6,13 @@ function validDuration(seconds) {
 function initialState(seconds) {
     var duration = validDuration(seconds) ? seconds : 1500;
     return { version: 1, durationSeconds: duration, phase: "idle", deadlineMs: 0,
-        remainingMs: duration * 1000, soundEnabled: true, notificationsEnabled: true };
+        remainingMs: duration * 1000, soundEnabled: true, notificationsEnabled: true,
+        presets: [
+            { label: "Quick focus", seconds: 900 },
+            { label: "Focus", seconds: 1800 },
+            { label: "Deep work", seconds: 3600 },
+            { label: "Long session", seconds: 7200 }
+        ] };
 }
 
 function restore(data) {
@@ -15,6 +21,14 @@ function restore(data) {
     var state = initialState(data.durationSeconds);
     state.soundEnabled = data.soundEnabled !== false;
     state.notificationsEnabled = data.notificationsEnabled !== false;
+    if (Array.isArray(data.presets) && data.presets.length === 4) {
+        state.presets = data.presets.map(function(preset, index) {
+            if (!preset || !validDuration(preset.seconds) || typeof preset.label !== "string"
+                    || !preset.label.trim() || preset.label.length > 32)
+                return state.presets[index];
+            return { label: preset.label.trim(), seconds: preset.seconds };
+        });
+    }
     if (["idle", "running", "paused", "finished"].indexOf(data.phase) < 0)
         return state;
     if (data.phase === "running" && typeof data.deadlineMs === "number"
@@ -79,4 +93,13 @@ function formatTime(milliseconds) {
     var tail = String(seconds % 60).padStart(2, "0");
     return hours > 0 ? hours + ":" + String(minutes).padStart(2, "0") + ":" + tail
                      : String(minutes).padStart(2, "0") + ":" + tail;
+}
+
+function updatePreset(state, index, label, seconds) {
+    if (!Number.isInteger(index) || index < 0 || index >= 4 || typeof label !== "string"
+            || !label.trim() || label.trim().length > 32 || !validDuration(seconds))
+        return state;
+    var presets = state.presets.slice();
+    presets[index] = { label: label.trim(), seconds: seconds };
+    return Object.assign({}, state, { presets: presets });
 }

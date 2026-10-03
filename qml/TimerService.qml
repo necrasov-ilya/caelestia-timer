@@ -12,6 +12,7 @@ Singleton {
     property bool ready: false
     property real nowMs: Date.now()
     property string storageError: ""
+    property var keyboardOwners: []
     readonly property string statePath: Quickshell.env("CAELESTIA_TIMER_STATE_FILE") ||
         (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state") + "/caelestia-timer/state.json"
     readonly property bool russian: (Quickshell.env("LC_ALL") || Quickshell.env("LC_MESSAGES") || Quickshell.env("LANG")).startsWith("ru")
@@ -22,8 +23,30 @@ Singleton {
     readonly property real progress: Math.max(0, Math.min(1, 1 - remainingMs / (state.durationSeconds * 1000)))
     readonly property string timeText: Logic.formatTime(remainingMs)
 
+    function requestKeyboard(owner: var, enabled: bool): void {
+        if (!owner)
+            return;
+        const owners = keyboardOwners.filter(item => item !== owner);
+        if (enabled)
+            owners.push(owner);
+        keyboardOwners = owners;
+    }
+
+    function keyboardFor(owner: var): bool {
+        return keyboardOwners.indexOf(owner) !== -1;
+    }
+
     function tr(english: string, russianText: string): string {
         return russian ? russianText : english;
+    }
+
+    function presetLabel(label: string): string {
+        const defaults = { "Quick focus": "Разминка", "Focus": "Фокус", "Deep work": "Глубокая работа", "Long session": "Большой блок" };
+        return russian && defaults[label] ? defaults[label] : label;
+    }
+
+    function updatePreset(index: int, label: string, seconds: int): void {
+        commit(Logic.updatePreset(state, index, label, seconds));
     }
 
     function commit(next: var): void {
@@ -120,12 +143,13 @@ Singleton {
         function status(): string {
             return JSON.stringify({ ready: root.ready, phase: root.phase, remainingMs: root.remainingMs,
                 durationSeconds: root.state.durationSeconds, soundEnabled: root.state.soundEnabled,
-                notificationsEnabled: root.state.notificationsEnabled, storageError: root.storageError });
+                notificationsEnabled: root.state.notificationsEnabled, presets: root.state.presets, storageError: root.storageError });
         }
         function start(): void { root.start(); }
         function pause(): void { root.pause(); }
         function reset(): void { root.reset(); }
         function duration(seconds: int): void { root.setDuration(seconds); }
+        function preset(index: int, label: string, seconds: int): void { root.updatePreset(index, label, seconds); }
         function sound(enabled: bool): void { root.setSound(enabled); }
         function notifications(enabled: bool): void { root.setNotifications(enabled); }
     }

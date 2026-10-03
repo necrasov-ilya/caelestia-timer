@@ -64,3 +64,17 @@ test('format does not show zero before completion and supports hours', () => {
     assert.equal(logic.formatTime(3600000), '1:00:00');
     assert.equal(logic.formatTime(86400000), '24:00:00');
 });
+
+test('four named presets are editable, validated and persist independently of timer state', () => {
+    const state = logic.initialState();
+    assert.equal(state.presets.map(p => p.seconds).join(','), '900,1800,3600,7200');
+    const customized = logic.updatePreset(state, 2, '  Чтение  ', 2700);
+    assert.equal(customized.presets[2].label, 'Чтение');
+    const restored = logic.restore(JSON.parse(JSON.stringify(logic.start(customized, 1000))));
+    assert.equal(restored.presets[2].seconds, 2700);
+    assert.equal(logic.reset(restored).presets[2].label, 'Чтение');
+    assert.equal(logic.updatePreset(state, 4, 'Invalid', 600), state);
+    assert.equal(logic.updatePreset(state, 0, '', 600), state);
+    assert.equal(logic.updatePreset(state, 0, 'Invalid', 0), state);
+    assert.equal(logic.restore({...state, presets: [{}, {}, {}, {}]}).presets[0].seconds, 900);
+});
