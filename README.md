@@ -2,6 +2,33 @@
 
 A timer tab for [Caelestia Shell](https://github.com/caelestia-dots/shell), using its native colours, typography, controls and Material shapes.
 
+<p align="center">
+  <a href="LICENSE"><img alt="License: GPL-3.0-only" src="https://img.shields.io/badge/license-GPL--3.0--only-blue"></a>&nbsp;
+  <img alt="Tested with Caelestia 2.5.0" src="https://img.shields.io/badge/Caelestia-2.5.0-6046ff">&nbsp;
+  <img alt="Tested with Quickshell 0.3.1" src="https://img.shields.io/badge/Quickshell-0.3.1-ac2954">
+</p>
+
+<p align="center">
+  English · <a href="docs/README.ru.md">Русский</a>
+</p>
+
+## Demo
+
+Choose a preset, start the timer, pause, resume and reset.
+
+![Preset selection and timer controls](docs/demo/controls.gif)
+
+<details>
+<summary>Countdown completion</summary>
+
+The last five seconds of a short timer, with the wavy ring filling to completion.
+
+![Countdown reaching zero](docs/demo/completion.gif)
+
+</details>
+
+## Features
+
 The countdown sits on the left, controls in the middle, and four named presets on the right. The wavy progress ring fills as time passes, with a slowly rotating Material shape and gently drifting shapes in the background. Wave motion uses the same native component as the Media tab and pauses when the timer is paused or the tab is hidden. Shell animation settings are respected.
 
 - Start, pause, resume and reset; durations from one second to 24 hours.
