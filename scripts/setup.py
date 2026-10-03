@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 
 REPO = Path(__file__).resolve().parents[1]
 MODULE = Path('modules/dashboard/caelestiaTimer')
@@ -54,7 +55,7 @@ def integrate(name, text):
         text = insert_once(text, '    GSFLoader {}', block('service', '    CaelestiaTimer.TimerBootstrap {}\n'))
     elif name == 'modules/dashboard/Content.qml':
         text = insert_once(text, '\nItem {', '\n' + block('import', 'import "caelestiaTimer" as CaelestiaTimer\n').rstrip('\n'))
-        text = insert_once(text, '            {\n                component: weatherComponent,', block('tab',
+        text = insert_once(text, '            {\n                component: performanceComponent,', block('tab',
             '            {\n                component: caelestiaTimerComponent,\n'
             '                iconName: "timer",\n                text: CaelestiaTimer.TimerService.tr("Timer", "Таймер"),\n'
             '                enabled: true\n            },\n'))
@@ -166,7 +167,10 @@ def install(target, base, check=False):
             expected = BLOCK_COUNTS[name]
             if text.count('// BEGIN caelestia-timer ') != expected:
                 raise ValueError(f'Integration was modified in {name}; restore the timer blocks before updating.')
-            patched[name] = text
+            cleaned = strip_blocks(text)
+            if 'CaelestiaTimer' in cleaned or 'caelestiaTimer' in cleaned:
+                raise ValueError(f'Integration blocks were modified in {name}.')
+            patched[name] = integrate(name, cleaned)
         else:
             patched[name] = integrate(name, text)
     module_path = target / MODULE
@@ -182,7 +186,7 @@ def install(target, base, check=False):
     created = record['created'] if record else []
     directories = record['directories'] if record else []
     originals = record['originals'] if record else {}
-    updated = []
+    updated = {}
     previous_module = None
     staging = None
     try:
@@ -197,8 +201,9 @@ def install(target, base, check=False):
                 backup = target / BACKUP / name
                 backup.parent.mkdir(parents=True, exist_ok=True)
                 backup.write_bytes(path.read_bytes())
+            if path.read_bytes() != patched[name].encode():
+                updated[name] = {'data': path.read_bytes(), 'link': os.readlink(path) if path.is_symlink() else None}
                 atomic_write(path, patched[name].encode())
-                updated.append(name)
         localize_parents(target, module_path, created, directories)
         staging = Path(tempfile.mkdtemp(prefix='.timer-module-', dir=module_path.parent))
         shutil.copytree(REPO / 'qml', staging, dirs_exist_ok=True)
@@ -215,8 +220,13 @@ def install(target, base, check=False):
                   'module_hashes': module_hashes(module_path)}
         atomic_write(record_path, (json.dumps(result, indent=2) + '\n').encode())
     except Exception:
-        for name in reversed(updated):
-            restore_original(target, name, originals[name])
+        for name, previous in reversed(list(updated.items())):
+            path = target / name
+            if previous['link'] is not None:
+                path.unlink(missing_ok=True)
+                path.symlink_to(previous['link'])
+            else:
+                atomic_write(path, previous['data'])
         if previous_module and previous_module.exists():
             if module_path.exists():
                 shutil.rmtree(module_path)
@@ -258,7 +268,7 @@ def uninstall(target, check=False):
         print(f'Timer can be removed from {target}')
         return
     for name in FILES:
-        if digest((target / name).read_bytes()) == record['patched_hashes'][name]:
+        if cleaned[name].encode() == (target / BACKUP / name).read_bytes():
             restore_original(target, name, record['originals'][name])
         else:
             atomic_write(target / name, cleaned[name].encode())
@@ -290,6 +300,14 @@ def main():
             uninstall(target, args.check)
         if args.restart and not args.check:
             subprocess.run(['qs', '-c', 'caelestia', 'kill'], check=False)
+            deadline = time.monotonic() + 8
+            while True:
+                probe = subprocess.run(['qs', '-c', 'caelestia', 'ipc', 'show'], capture_output=True, text=True)
+                if 'No running instances' in probe.stdout + probe.stderr:
+                    break
+                if time.monotonic() >= deadline:
+                    raise ValueError('Caelestia is still stopping. Restart the shell manually.')
+                time.sleep(0.1)
             subprocess.run(['caelestia', 'shell', '-d'] if shutil.which('caelestia') else
                            ['qs', '-c', 'caelestia', '-n', '-d'], check=True)
     except (ValueError, OSError, KeyError) as error:

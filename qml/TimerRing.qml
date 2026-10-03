@@ -12,6 +12,7 @@ Item {
     property real progress: 0
     property bool moving: false
     property real phase: 0
+    property real elapsedSinceFrame: 0
     readonly property real stroke: 7
     readonly property real amplitude: 0.55
     readonly property real radius: (Math.min(width, height) - stroke * (1 + 2 * amplitude)) / 2
@@ -56,7 +57,12 @@ Item {
 
     FrameAnimation {
         running: root.visible && root.moving && Tokens.anim.durations.scale > 0
-        onTriggered: root.phase = (root.phase + Math.min(frameTime, 0.05) /
-            (2.4 * Tokens.anim.durations.scale)) % 1
+        onTriggered: {
+            root.elapsedSinceFrame += Math.min(frameTime, 0.05);
+            if (root.elapsedSinceFrame < 1 / 60)
+                return;
+            root.phase = (root.phase + root.elapsedSinceFrame / (2.4 * Tokens.anim.durations.scale)) % 1;
+            root.elapsedSinceFrame = 0;
+        }
     }
 }

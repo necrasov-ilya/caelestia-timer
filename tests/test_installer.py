@@ -14,6 +14,10 @@ CONTENT = '''import QtQuick
 Item {
     property var tabs: [
             {
+                component: performanceComponent,
+                text: "Performance"
+            },
+            {
                 component: weatherComponent,
                 text: "Weather"
             }
@@ -110,6 +114,26 @@ class InstallerTests(unittest.TestCase):
         module.write_bytes(original)
         setup.uninstall(self.target)
         self.assertEqual(service.resolve(), replacement)
+
+    def test_update_rebuilds_integration_and_rolls_back_on_failure(self):
+        self.install()
+        content = self.target / setup.FILES[1]
+        old = content.read_text()
+        timer_block = setup.block('tab', '            {\n                component: caelestiaTimerComponent,\n                iconName: "timer",\n                text: CaelestiaTimer.TimerService.tr("Timer", "Таймер"),\n                enabled: true\n            },\n')
+        previous = old.replace(timer_block, '')
+        previous = previous.replace('            {\n                component: weatherComponent,', timer_block + '            {\n                component: weatherComponent,')
+        content.write_text(previous + '// keep this\n')
+        before = content.read_bytes()
+        with patch.object(setup.shutil, 'copytree', side_effect=OSError('simulated update failure')):
+            with self.assertRaises(OSError):
+                self.install()
+        self.assertEqual(content.read_bytes(), before)
+        self.install()
+        rebuilt = content.read_text()
+        self.assertLess(rebuilt.index('component: caelestiaTimerComponent'), rebuilt.index('component: performanceComponent'))
+        self.assertTrue(rebuilt.endswith('// keep this\n'))
+        setup.uninstall(self.target)
+        self.assertEqual(content.read_text(), CONTENT + '// keep this\n')
 
     def test_partial_install_rolls_back_originals(self):
         self.target.mkdir()

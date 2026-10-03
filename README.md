@@ -2,7 +2,7 @@
 
 A timer tab for [Caelestia Shell](https://github.com/caelestia-dots/shell), using its native colours, typography, controls and Material shapes.
 
-The countdown sits on the left, controls in the middle, and four named presets on the right. The progress ring fills as time passes, with gently drifting shapes in the background.
+The countdown sits on the left, controls in the middle, and four named presets on the right. The wavy progress ring fills as time passes, with a slowly rotating Material shape and gently drifting shapes in the background. Wave motion uses the same native component as the Media tab and pauses when the timer is paused or the tab is hidden. Shell animation settings are respected.
 
 - Start, pause, resume and reset; durations from one second to 24 hours.
 - Presets for 15, 30, 60 and 120 minutes; edit their names and durations with the settings button.
@@ -21,7 +21,7 @@ cd caelestia-timer
 ./install.sh --restart
 ```
 
-Open Dashboard and select **Timer**. For a manual restart, omit `--restart` and restart Caelestia yourself.
+Open Dashboard and select **Timer**, next to Media. Enter a duration as `mm:ss`, `hh:mm:ss`, or a number of minutes (for example, `15`). For a manual restart, omit `--restart` and restart Caelestia yourself.
 
 The installer checks the dashboard structure before writing anything. It adds a user-level module and small marked integration blocks in `shell.qml`, `modules/dashboard/Content.qml` and `modules/drawers/ContentWindow.qml`. Keyboard focus is enabled on demand while the timer tab is open, so duration and preset fields can receive input.
 

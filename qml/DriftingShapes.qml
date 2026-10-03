@@ -10,6 +10,7 @@ import qs.services
 Item {
     id: root
     property bool animate: true
+    property real elapsedSinceFrame: 0
     readonly property var shapePool: [MaterialShape.Cookie4Sided, MaterialShape.Cookie9Sided,
         MaterialShape.Sunny, MaterialShape.SoftBurst, MaterialShape.Gem, MaterialShape.Pill, MaterialShape.Oval]
     clip: true
@@ -41,7 +42,11 @@ Item {
     FrameAnimation {
         running: root.visible && root.animate && root.width > 0 && root.height > 0 && Tokens.anim.durations.scale > 0
         onTriggered: {
-            const dt = Math.min(frameTime, 0.05);
+            root.elapsedSinceFrame += Math.min(frameTime, 0.05);
+            if (root.elapsedSinceFrame < 1 / 30)
+                return;
+            const dt = root.elapsedSinceFrame;
+            root.elapsedSinceFrame = 0;
             for (let i = 0; i < shapes.count; i++) {
                 const blob = shapes.itemAt(i);
                 if (!blob)

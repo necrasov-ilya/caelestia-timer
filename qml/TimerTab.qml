@@ -61,10 +61,16 @@ Item {
             }
 
             FrameAnimation {
+                property real elapsedSinceFrame: 0
                 running: root.visible && root.presented && root.timer.phase !== "paused"
                     && Tokens.anim.durations.scale > 0
-                onTriggered: backdrop.rotation = (backdrop.rotation + Math.min(frameTime, 0.05) * 10 /
-                    Tokens.anim.durations.scale) % 360
+                onTriggered: {
+                    elapsedSinceFrame += Math.min(frameTime, 0.05);
+                    if (elapsedSinceFrame < 1 / 60)
+                        return;
+                    backdrop.rotation = (backdrop.rotation + elapsedSinceFrame * 10 / Tokens.anim.durations.scale) % 360;
+                    elapsedSinceFrame = 0;
+                }
             }
 
             TimerRing {
@@ -102,62 +108,108 @@ Item {
             }
         }
 
-        ColumnLayout {
+        GridLayout {
             Layout.fillWidth: true
+            Layout.fillHeight: false
             Layout.alignment: Qt.AlignVCenter
-            Layout.preferredWidth: 310
-            spacing: Tokens.spacing.large
+            columns: 2
+            columnSpacing: Tokens.spacing.extraLarge
+            rowSpacing: Tokens.spacing.medium
 
-            ColumnLayout {
+            StyledText {
                 Layout.fillWidth: true
-                spacing: Tokens.spacing.extraSmall
+                Layout.preferredWidth: 310
+                text: root.sessionName
+                font: Tokens.font.title.medium
+                horizontalAlignment: Text.AlignHCenter
+                elide: Text.ElideRight
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
 
                 StyledText {
                     Layout.fillWidth: true
-                    elide: Text.ElideRight
-                    text: root.sessionName
-                    font: Tokens.font.title.large
+                    text: root.timer.tr("Presets", "Пресеты")
+                    font: Tokens.font.title.medium
+                    horizontalAlignment: Text.AlignHCenter
                 }
 
-                StyledText {
-                    text: root.timer.phase === "running" ? root.timer.tr("Counting down", "Идёт отсчёт") :
-                        root.timer.phase === "paused" ? root.timer.tr("Paused", "На паузе") :
-                        root.timer.phase === "finished" ? root.timer.tr("Time's up", "Время вышло") :
-                        root.timer.tr("Ready when you are", "Можно начинать")
-                    color: Colours.palette.m3secondary
-                    font: Tokens.font.body.medium
+                IconButton {
+                    icon: root.editingPresets ? "check" : "tune"
+                    type: IconButton.Text
+                    disabled: !root.timer.ready
+                    onClicked: {
+                        forceActiveFocus();
+                        root.editingPresets = !root.editingPresets;
+                    }
+                    Accessible.name: root.timer.tr("Edit presets", "Настроить пресеты")
                 }
             }
 
-            ColumnLayout {
+            Item {
                 Layout.fillWidth: true
-                spacing: Tokens.spacing.small
+                Layout.fillHeight: true
+                Layout.preferredWidth: 310
+                Layout.minimumWidth: actions.implicitWidth
+                implicitHeight: Math.max(presetBody.implicitHeight,
+                    durationInput.implicitHeight + 2 * (actions.implicitHeight + Tokens.spacing.medium))
 
                 StyledText {
+                    anchors.left: parent.left
+                    anchors.bottom: durationInput.top
+                    anchors.bottomMargin: Tokens.spacing.small
                     text: root.timer.tr("Duration", "Длительность")
                     color: Colours.palette.m3onSurfaceVariant
                     font: Tokens.font.body.small
                 }
 
-                StyledTextField {
+                TextFieldBase {
                     id: durationInput
 
                     objectName: "timerDuration"
-                    Layout.fillWidth: true
-                    type: StyledTextField.Filled
-                    leadingIcon: "schedule"
-                    trailingIcon: root.timer.editable ? "edit" : "lock"
-                    placeholderText: ""
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    property bool isError: false
+                    readonly property bool valid: root.timer.validDurationText(text)
+                    readonly property string errorText: root.timer.tr("Use mm:ss or hh:mm:ss · up to 24 h", "мм:сс или чч:мм:сс · до 24 ч")
+                    leftPadding: Tokens.padding.large * 2 + Tokens.padding.medium
+                    rightPadding: leftPadding
+                    topPadding: Tokens.padding.medium
+                    bottomPadding: topPadding
                     text: root.timer.durationText()
                     font: Tokens.font.headline.medium
                     horizontalAlignment: Text.AlignHCenter
-                    verticalPadding: Tokens.padding.medium
                     maximumLength: 8
                     readOnly: !root.timer.editable
                     inputMethodHints: Qt.ImhPreferNumbers
-                    validate: text => root.timer.validDurationText(text)
-                    emptyIsValid: false
-                    errorText: root.timer.tr("Use mm:ss or hh:mm:ss · up to 24 h", "мм:сс или чч:мм:сс · до 24 ч")
+                    onTextEdited: isError = false
+
+                    background: StyledRect {
+                        radius: Tokens.rounding.large
+                        color: durationInput.activeFocus ? Colours.palette.m3surfaceContainerHighest : Colours.palette.m3surfaceContainerHigh
+                        border.width: durationInput.isError || durationInput.activeFocus ? 2 : 0
+                        border.color: durationInput.isError ? Colours.palette.m3error : Colours.palette.m3primary
+                    }
+
+                    MaterialIcon {
+                        anchors.left: parent.left
+                        anchors.leftMargin: Tokens.padding.medium
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "schedule"
+                        color: Colours.palette.m3onSurfaceVariant
+                        fontStyle: Tokens.font.icon.small
+                    }
+
+                    MaterialIcon {
+                        anchors.right: parent.right
+                        anchors.rightMargin: Tokens.padding.medium
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: root.timer.editable ? "edit" : "lock"
+                        color: Colours.palette.m3onSurfaceVariant
+                        fontStyle: Tokens.font.icon.small
+                    }
                     Accessible.name: root.timer.tr("Timer duration", "Длительность таймера")
 
                     function commitValue(): bool {
@@ -184,172 +236,166 @@ Item {
                     }
                 }
 
-            }
 
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Tokens.spacing.small
+                RowLayout {
+                    id: actions
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: durationInput.bottom
+                    anchors.topMargin: Tokens.spacing.medium
+                    spacing: Tokens.spacing.small
 
-                IconButton {
-                    icon: "restart_alt"
-                    type: IconButton.Tonal
-                    disabled: !root.timer.ready || root.timer.phase === "idle"
-                    onClicked: root.timer.reset()
-                    Accessible.name: root.timer.tr("Reset timer", "Сбросить таймер")
-                }
-
-                IconTextButton {
-                    Layout.fillWidth: true
-                    implicitHeight: 54
-                    icon: root.timer.running ? "pause" : "play_arrow"
-                    text: root.timer.running ? root.timer.tr("Pause", "Пауза") :
-                        root.timer.phase === "paused" ? root.timer.tr("Resume", "Продолжить") : root.timer.tr("Start", "Начать")
-                    font: Tokens.font.title.medium
-                    disabled: !root.timer.ready || !durationInput.valid
-                    onClicked: {
-                        if (durationInput.commitValue())
-                            root.timer.running ? root.timer.pause() : root.timer.start();
+                    IconButton {
+                        icon: "restart_alt"
+                        type: IconButton.Tonal
+                        disabled: !root.timer.ready || root.timer.phase === "idle"
+                        onClicked: root.timer.reset()
+                        Accessible.name: root.timer.tr("Reset timer", "Сбросить таймер")
                     }
-                }
 
-                IconButton {
-                    icon: root.timer.state.soundEnabled ? "volume_up" : "volume_off"
-                    type: IconButton.Tonal
-                    activeColour: Colours.palette.m3secondaryContainer
-                    activeOnColour: Colours.palette.m3onSecondaryContainer
-                    inactiveColour: Colours.palette.m3surfaceContainerHigh
-                    inactiveOnColour: Colours.palette.m3onSurfaceVariant
-                    isToggle: true
-                    checked: root.timer.state.soundEnabled
-                    onClicked: root.timer.setSound(!root.timer.state.soundEnabled)
-                    Accessible.name: root.timer.tr("Sound", "Звук")
-                }
-
-                IconButton {
-                    icon: root.timer.state.notificationsEnabled ? "notifications_active" : "notifications_off"
-                    type: IconButton.Tonal
-                    activeColour: Colours.palette.m3secondaryContainer
-                    activeOnColour: Colours.palette.m3onSecondaryContainer
-                    inactiveColour: Colours.palette.m3surfaceContainerHigh
-                    inactiveOnColour: Colours.palette.m3onSurfaceVariant
-                    isToggle: true
-                    checked: root.timer.state.notificationsEnabled
-                    onClicked: root.timer.setNotifications(!root.timer.state.notificationsEnabled)
-                    Accessible.name: root.timer.tr("Notifications", "Уведомления")
-                }
-            }
-
-            StyledText {
-                Layout.fillWidth: true
-                visible: root.timer.storageError.length > 0
-                text: root.timer.storageError
-                font: Tokens.font.body.small
-                color: Colours.palette.m3error
-                wrapMode: Text.Wrap
-            }
-        }
-
-        ColumnLayout {
-            Layout.fillWidth: true
-            Layout.alignment: Qt.AlignVCenter
-            Layout.preferredWidth: 290
-            spacing: Tokens.spacing.medium
-
-            RowLayout {
-                Layout.fillWidth: true
-
-                StyledText {
-                    Layout.fillWidth: true
-                    text: root.timer.tr("Presets", "Пресеты")
-                    font: Tokens.font.title.medium
-                }
-
-                IconButton {
-                    icon: root.editingPresets ? "check" : "tune"
-                    type: IconButton.Text
-                    disabled: !root.timer.ready
-                    onClicked: {
-                        forceActiveFocus();
-                        root.editingPresets = !root.editingPresets;
-                    }
-                    Accessible.name: root.timer.tr("Edit presets", "Настроить пресеты")
-                }
-            }
-
-            GridLayout {
-                visible: !root.editingPresets
-                Layout.fillWidth: true
-                columns: 2
-                columnSpacing: Tokens.spacing.small
-                rowSpacing: Tokens.spacing.small
-
-                Repeater {
-                    model: 4
-                    delegate: PresetButton {
-                        required property int index
+                    IconTextButton {
                         Layout.fillWidth: true
-                        Layout.minimumWidth: 100
-                        label: root.timer.presetLabel(root.timer.state.presets[index].label)
-                        minutes: root.timer.state.presets[index].seconds / 60
-                        selected: root.timer.state.durationSeconds === root.timer.state.presets[index].seconds
-                        disabled: !root.timer.editable
+                        implicitHeight: 54
+                        icon: root.timer.running ? "pause" : "play_arrow"
+                        text: root.timer.running ? root.timer.tr("Pause", "Пауза") :
+                            root.timer.phase === "paused" ? root.timer.tr("Resume", "Продолжить") : root.timer.tr("Start", "Начать")
+                        font: Tokens.font.title.medium
+                        disabled: !root.timer.ready || !durationInput.valid
                         onClicked: {
-                            durationInput.focus = false;
-                            root.timer.setDuration(root.timer.state.presets[index].seconds);
+                            if (durationInput.commitValue())
+                                root.timer.running ? root.timer.pause() : root.timer.start();
                         }
                     }
-                }
-            }
 
-            ColumnLayout {
-                visible: root.editingPresets
-                Layout.fillWidth: true
-                spacing: Tokens.spacing.small
+                    IconButton {
+                        icon: root.timer.state.soundEnabled ? "volume_up" : "volume_off"
+                        type: IconButton.Tonal
+                        activeColour: Colours.palette.m3secondaryContainer
+                        activeOnColour: Colours.palette.m3onSecondaryContainer
+                        inactiveColour: Colours.palette.m3surfaceContainerHigh
+                        inactiveOnColour: Colours.palette.m3onSurfaceVariant
+                        isToggle: true
+                        checked: root.timer.state.soundEnabled
+                        onClicked: root.timer.setSound(!root.timer.state.soundEnabled)
+                        Accessible.name: root.timer.tr("Sound", "Звук")
+                    }
 
-                Repeater {
-                    model: 4
-                    delegate: RowLayout {
-                        id: presetRow
-
-                        required property int index
-                        Layout.fillWidth: true
-                        spacing: Tokens.spacing.small
-
-                        StyledTextField {
-                            id: presetName
-
-                            objectName: "presetName" + presetRow.index
-                            Layout.minimumWidth: 90
-                            Layout.fillWidth: true
-                            verticalPadding: Tokens.padding.medium
-                            text: root.timer.presetLabel(root.timer.state.presets[presetRow.index].label)
-                            maximumLength: 32
-                            onEditingFinished: {
-                                if (text.trim())
-                                    root.timer.updatePreset(presetRow.index, text, root.timer.state.presets[presetRow.index].seconds);
-                                else
-                                    text = root.timer.presetLabel(root.timer.state.presets[presetRow.index].label);
-                            }
-                            Accessible.name: root.timer.tr("Preset name", "Название пресета")
-                        }
-
-                        TimerSpinBox {
-                            from: 1
-                            to: 1440
-                            stepSize: 1
-                            sourceValue: Math.round(root.timer.state.presets[presetRow.index].seconds / 60)
-                            onValueModified: root.timer.updatePreset(presetRow.index, presetName.text, Math.round(value) * 60)
-                            Accessible.name: root.timer.tr("Preset minutes", "Минуты пресета")
-                        }
+                    IconButton {
+                        icon: root.timer.state.notificationsEnabled ? "notifications_active" : "notifications_off"
+                        type: IconButton.Tonal
+                        activeColour: Colours.palette.m3secondaryContainer
+                        activeOnColour: Colours.palette.m3onSecondaryContainer
+                        inactiveColour: Colours.palette.m3surfaceContainerHigh
+                        inactiveOnColour: Colours.palette.m3onSurfaceVariant
+                        isToggle: true
+                        checked: root.timer.state.notificationsEnabled
+                        onClicked: root.timer.setNotifications(!root.timer.state.notificationsEnabled)
+                        Accessible.name: root.timer.tr("Notifications", "Уведомления")
                     }
                 }
 
                 StyledText {
-                    Layout.fillWidth: true
-                    elide: Text.ElideRight
-                    text: root.timer.tr("Minutes · saved automatically", "Минуты · сохраняется автоматически")
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: actions.bottom
+                    anchors.topMargin: Tokens.spacing.small
+                    visible: text.length > 0
+                    text: root.timer.storageError || (durationInput.isError ? durationInput.errorText : "")
                     font: Tokens.font.body.small
-                    color: Colours.palette.m3onSurfaceVariant
+                    color: Colours.palette.m3error
+                    wrapMode: Text.Wrap
+                }
+            }
+
+            Item {
+                id: presetBody
+
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.preferredWidth: 290
+                implicitHeight: root.editingPresets ? presetEditor.implicitHeight : presetGrid.implicitHeight
+
+                GridLayout {
+                    id: presetGrid
+                    visible: !root.editingPresets
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    columns: 2
+                    columnSpacing: Tokens.spacing.small
+                    rowSpacing: Tokens.spacing.small
+
+                    Repeater {
+                        model: 4
+                        delegate: PresetButton {
+                            required property int index
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 100
+                            label: root.timer.presetLabel(root.timer.state.presets[index].label)
+                            minutes: root.timer.state.presets[index].seconds / 60
+                            selected: root.timer.state.durationSeconds === root.timer.state.presets[index].seconds
+                            disabled: !root.timer.editable
+                            onClicked: {
+                                durationInput.focus = false;
+                                root.timer.setDuration(root.timer.state.presets[index].seconds);
+                            }
+                        }
+                    }
+                }
+
+                ColumnLayout {
+                    id: presetEditor
+                    visible: root.editingPresets
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: Tokens.spacing.small
+
+                    Repeater {
+                        model: 4
+                        delegate: RowLayout {
+                            id: presetRow
+
+                            required property int index
+                            Layout.fillWidth: true
+                            spacing: Tokens.spacing.small
+
+                            StyledTextField {
+                                id: presetName
+
+                                objectName: "presetName" + presetRow.index
+                                Layout.minimumWidth: 90
+                                Layout.fillWidth: true
+                                verticalPadding: Tokens.padding.medium
+                                text: root.timer.presetLabel(root.timer.state.presets[presetRow.index].label)
+                                maximumLength: 32
+                                onEditingFinished: {
+                                    if (text.trim())
+                                        root.timer.updatePreset(presetRow.index, text, root.timer.state.presets[presetRow.index].seconds);
+                                    else
+                                        text = root.timer.presetLabel(root.timer.state.presets[presetRow.index].label);
+                                }
+                                Accessible.name: root.timer.tr("Preset name", "Название пресета")
+                            }
+
+                            TimerSpinBox {
+                                from: 1
+                                to: 1440
+                                stepSize: 1
+                                sourceValue: Math.round(root.timer.state.presets[presetRow.index].seconds / 60)
+                                onValueModified: root.timer.updatePreset(presetRow.index, presetName.text, Math.round(value) * 60)
+                                Accessible.name: root.timer.tr("Preset minutes", "Минуты пресета")
+                            }
+                        }
+                    }
+
+                    StyledText {
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                        text: root.timer.tr("Minutes · saved automatically", "Минуты · сохраняется автоматически")
+                        font: Tokens.font.body.small
+                        color: Colours.palette.m3onSurfaceVariant
+                    }
                 }
             }
         }
